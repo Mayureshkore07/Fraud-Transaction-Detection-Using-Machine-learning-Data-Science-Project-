@@ -1,0 +1,82 @@
+1. Data cleaning including missing values, outliers and multi-collinearity.
+So, for data cleaning, the first thing I did was handle the basics. I checked for duplicates in the data, and thankfully, there weren't any, so the dataset size stayed the same. I also wrote some code to handle missing values. I used the median for any numeric columns and the mode for categorical ones. This is a solid approach because it's robust to extreme values that might be present.
+
+My next step was to address outliers and multicollinearity. I used the Interquartile Range (IQR) method to identify and cap outliers in key numeric columns like amount and the various balance fields. Capping them instead of removing them is a great way to handle extreme values without losing valuable data. For multicollinearity, the correlation heatmap gave me a good visual starting point. To get more precise, I used the Variance Inflation Factor (VIF). I wrote a function that iteratively dropped the most highly correlated features until all remaining features had a VIF below 10. This makes the model more stable and easier to interpret.
+
+
+2. Describe your fraud detection model in elaboration.
+The model I built is designed to proactively detect fraud. I didn't want to just rely on one approach, so I tested four different machine learning models:
+
+Logistic Regression: A good baseline model to see how a simple linear model performs.
+
+Random Forest: An ensemble method that's great at handling complex data and identifying important features.
+
+XGBoost and LightGBM: These are my go-to models for this kind of problem. They are gradient boosting algorithms known for their high performance and efficiency, especially with large datasets.
+
+A major challenge with this data is that fraud is so rare. To combat this class imbalance, I used a technique called SMOTE on a smaller, representative sample of the training data. This created synthetic fraud samples, giving the models enough data to properly learn what a fraudulent transaction looks like. It's a much more effective approach than training on the raw imbalanced data.
+
+
+
+3. How did you select variables to be included in the model?
+I selected the variables based on a blend of common sense and data-driven analysis. First, I dropped the nameOrig and nameDest columns. They're unique identifiers, so they don't help the model learn generalizable patterns.
+
+Next, I focused on feature engineering. I created a couple of new features, like diff_balance_org and diff_balance_dest, to measure the change in account balances. I also used a log transformation on the amount variable to make its distribution more normal.
+
+To finalize my choices, I used the Random Forest model's feature importance to rank the variables. This showed me which ones were the most influential in predicting fraud, and I prioritized those in my final models.
+
+
+4. Demonstrate the performance of the model by using best set of tools.
+When it comes to showing how well the model works, I used a comprehensive set of tools and metrics. It's not enough to just look at accuracy, especially with imbalanced data. I made sure to evaluate my models on the full, original test set to get a realistic picture of their performance.
+
+Here's what I looked at:
+
+Classification Report: This gives me precision and recall. Recall is particularly important here because I want to make sure the model is catching as many fraudulent transactions as possible.
+
+Confusion Matrix: A quick visual to see where the model is making mistakes.
+
+ROC and PR Curves: I generated these curves and their corresponding AUC scores. The PR-AUC is especially valuable for imbalanced data, as it shows the trade-off between precision and recall.
+
+My analysis showed that LightGBM and XGBoost performed the best, achieving near-perfect ROC-AUC scores and very high PR-AUC scores.
+
+
+5. What are the key factors that predict fraudulent customer?
+Based on the feature importance from the Random Forest model, the most powerful predictors of fraud were:
+
+diff_balance_org: The difference between the new and old balance of the originating account.
+
+oldbalanceOrg and newbalanceOrig: The balances of the originating account before and after the transaction.
+
+amount: The transaction value.
+
+Transaction Type: Specifically, the TRANSFER and CASH_OUT transaction types.
+
+6. Do these factors make sense? If yes, How? If not, How not?
+Yes, absolutely! These factors make perfect sense.
+
+When a fraudster gets into an account, their first goal is to move the money out. A large transaction that completely drains the account is highly suspicious. This behavior is perfectly captured by the high importance of diff_balance_org and amount.
+
+The fact that fraud is only occurring in the TRANSFER and CASH_OUT categories is also a key insight. These are the two ways a fraudster can actually get their hands on the money. Other transaction types, like PAYMENT, might not be as useful for them. This finding confirms our initial assumptions about how fraudsters operate.
+
+
+7. What kind of prevention should be adopted while company update its infrastructure?
+If the company is updating its infrastructure, this is a great time to embed a proactive fraud prevention system. I'd recommend:
+
+Real-time Monitoring: The new infrastructure should integrate the best-performing model (LightGBM) to score every transaction as it happens. This allows us to catch fraud instantly.
+
+Tiered Alerting: Not all alerts are equal. We can set up a system to automatically block very high-risk transactions while sending less certain ones to a team of human analysts for a quick review.
+
+Behavioral Analytics: The system should learn a user's normal behavior. If a large transfer to a new account is initiated, especially one that's a significant deviation from the user's history, it should raise a red flag.
+
+Continuous Improvement: The fraud landscape is always changing. The new infrastructure should have a pipeline to automatically retrain the model on fresh data so it's always up-to-date against new fraud tactics.
+
+
+8. Assuming these actions have been implemented, how would you determine if they work?
+To prove these strategies are working, I'd focus on a few key metrics and feedback loops:
+
+Reduced Financial Loss: The most important thing is to see a significant drop in the amount of money lost to fraud.
+
+Model Performance: I would continuously monitor the model's recall to ensure we're still catching a high percentage of fraud, and precision to make sure we're not annoying too many customers with false positives.
+
+Feedback from the Real World: I'd work with the fraud analysts to see if the alerts are actually useful, and I'd listen to customer feedback to make sure the system isn't causing too much friction.
+
+Fraudster Adaptability: By analyzing new fraud attempts, we can see if the model's top predictive features are still relevant. If they aren't, it's a signal that the fraudsters have found a new way around our defenses, and it's time to update the model.
